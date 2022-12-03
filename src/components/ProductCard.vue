@@ -1,5 +1,5 @@
 <template>
-  <div class="container-men">
+  <div :class="cardClass">
     <div class="cards">
       <div class="row">
         <div class="product-img">
@@ -28,9 +28,8 @@
             <a href="'product/${this.count}'">{{ id }}</a>
           </button>
           <button class="btn-next">
-            <a class="btn-next-product" v-on:click="addCount">Next Product</a>
+            <a class="btn-next-product" v-on:click="addCount">{{isFetching ? 'Please wait...' : 'Next Product'}}</a>
           </button>
-          <p>{{ count }}</p>
         </div>
       </div>
     </div>
@@ -49,30 +48,29 @@ export default reactive({
       products: [],
       gambar_default: "",
       count: 1,
+      isFetching: false,
+      cardClass: []
     };
   },
 
-  mounted() {
-    axios
-      .get("https://fakestoreapi.com/products/" + this.count)
-      .then((response) => {
-        this.products = response.data;
-        this.count = response.data.id;
-        this.category = response.data.category;
-        //const background = document.getElementsByClassName("container-men");
-        if (this.category == "men's clothing") {
-          document
-            .getElementsByClassName("container-men")
-            .classList.add("dark-mode");
-        } else if (this.category == "women's clothing") {
-          return {
-            theme: "container-women",
-          };
-        }
-      })
-      .catch((error) => {
-        console.log(error);
-      });
+  async mounted() {
+    try {
+      this.isFetching = true
+      const response = await this.fetchAPI(this.count)
+      const { data: products } = response
+      const { id: count, category } = products
+      
+      this.products = products
+      this.count = count
+      this.category = category
+
+      this.getBgStyle(this.category)
+
+      this.isFetching = false
+    } catch (error) {
+      this.isFetching = false
+      console.log(error)
+    }
   },
   methods: {
     changeImage(urlImage) {
@@ -84,51 +82,50 @@ export default reactive({
       // replace value gambar default dengan data dari API (galleries)
       this.gambar_default = data.images;
     },
-
-    addCount() {
-      if (
-        this.products.category == "men's clothing" ||
-        this.products.category == "women's clothing"
-      ) {
-        if (this.count == 20) {
-          this.count = 1;
-          axios
-            .get("https://fakestoreapi.com/products/" + this.count)
-            .then((response) => {
-              this.products = response.data;
-              this.count = response.data.id;
-            })
-            .catch((error) => {
-              console.log(error);
-            });
-
-          console.log(this.products.category);
+    getBgStyle(category){
+      switch (category) {
+        case "men's clothing":
+          this.cardClass = 'container-men'
+          break
+        case "women's clothing":
+          this.cardClass = 'container-women'
+          break
+        default:
+          this.cardClass = 'container-women'
+          break
+      }
+    },
+    async addCount() {
+      if(!this.isFetching){
+        this.isFetching = true
+        if (
+          this.products.category == "men's clothing" ||
+          this.products.category == "women's clothing"
+        ) {
+          if (this.count == 20) {
+            this.count = 1;
+          } else {
+            this.count++;
+          }
         } else {
           this.count++;
-          axios
-            .get("https://fakestoreapi.com/products/" + this.count)
-            .then((response) => {
-              this.products = response.data;
-              this.count = response.data.id;
-            })
-            .catch((error) => {
-              console.log(error);
-            });
-          console.log(this.products.category);
         }
-      } else {
-        this.count++;
-        axios
-          .get("https://fakestoreapi.com/products/" + this.count)
-          .then((response) => {
-            this.products = response.data;
-            this.count = response.data.id;
-          })
-          .catch((error) => {
-            console.log(error);
-          });
-        console.log(this.products.category);
+        
+        const response = await this.fetchAPI(this.count)
+        const { data: products } = response
+        const { id: count, category } = products
+        
+        this.products = products
+        this.count = count
+        this.category = category
+
+        this.getBgStyle(this.category)
+        
+        this.isFetching = false
       }
+    },
+    async fetchAPI(count){
+      return await axios.get("https://fakestoreapi.com/products/" + count)
     },
   },
 });
